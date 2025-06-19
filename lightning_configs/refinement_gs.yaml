@@ -1,0 +1,98 @@
+seed_everything: 42
+
+# ---------------------------- TRAINER -------------------------------------------
+trainer:
+  default_root_dir: /eagle/MDClimSim/tungnd/physics_sim/
+
+  precision: 32
+
+  devices: 1
+  num_nodes: 1
+  accelerator: gpu
+  strategy:
+    class_path: lightning.pytorch.strategies.DDPStrategy
+    init_args:
+      find_unused_parameters: true
+
+  min_epochs: 1
+  max_epochs: 300
+  enable_progress_bar: true
+
+  sync_batchnorm: True
+  enable_checkpointing: True
+  num_sanity_val_steps: 4
+
+  # debugging
+  fast_dev_run: false
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: 'physics_sim'
+      save_dir: ${trainer.default_root_dir}/test
+      name: test
+      
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: "step"
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        dirpath: "${trainer.default_root_dir}/test/checkpoints"
+        monitor: "val/loss" # name of the logged metric which determines when model is improving
+        mode: "min"
+        save_top_k: 1 # save k best models (determined by above metric)
+        save_last: True # additionaly always save model from last epoch
+        verbose: False
+        filename: "epoch_{epoch:03d}"
+        auto_insert_metric_name: False
+
+    # - class_path: lightning.pytorch.callbacks.EarlyStopping
+    #   init_args:
+    #     monitor: "val/loss"
+    #     mode: "min"
+    #     patience: 10 # how many validation epochs of not improving until training stops
+    #     min_delta: 0. # minimum change in the monitored metric needed to qualify as an improvement
+
+    - class_path: lightning.pytorch.callbacks.RichModelSummary
+      init_args:
+        max_depth: -1
+
+    - class_path: lightning.pytorch.callbacks.TQDMProgressBar
+
+# ---------------------------- MODEL -------------------------------------------
+model:
+  accumulate_grad_batches: 1
+  context_frames: 5
+  model_config:
+    blocks_at_neck: 1
+    blocks_per_stage: 4
+    dim_in: 32
+    dim_out: 2
+    gradient_checkpointing: false
+    init_features: 64
+    n_spatial_dims: 2
+    spatial_resolution: [128, 128]
+    stages: 4 
+    delta_t_project: true
+  pretrained_path: null
+  loss_type: "mse"
+  lr: 5e-4
+  beta_1: 0.9
+  beta_2: 0.95
+  warmup_epochs: 10
+  max_epochs: 300
+  warmup_start_lr: 1e-8
+  eta_min: 1e-8
+
+# ---------------------------- DATA -------------------------------------------
+data:
+  context_frames: ${model.context_frames}
+  root_dir: /eagle/MDClimSim/tungnd/data/the_well/cosmos-refinement_fixed_tokenizer/gray_scott_reaction_diffusion_first_idx/
+  grounding_frames: [-1,0]
+  normalization_stats: /eagle/MDClimSim/tungnd/data/the_well/normalized/gray_scott_reaction_diffusion/
+  total_frames: 13
+  batch_size: 4
+  num_workers: 4
+  pin_memory: False

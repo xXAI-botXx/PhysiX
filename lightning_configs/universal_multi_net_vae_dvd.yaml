@@ -1,0 +1,150 @@
+seed_everything: 42
+
+# ---------------------------- TRAINER -------------------------------------------
+trainer:
+  default_root_dir: /eagle/MDClimSim/tungnd/physics_sim/
+
+  precision: bf16-mixed
+
+  devices: 1
+  num_nodes: 1
+  accelerator: gpu
+  strategy:
+    class_path: lightning.pytorch.strategies.DDPStrategy
+    init_args:
+      find_unused_parameters: true
+
+  min_epochs: 1
+  max_epochs: 300
+  enable_progress_bar: true
+
+  sync_batchnorm: True
+  enable_checkpointing: True
+  num_sanity_val_steps: 1
+
+  # debugging
+  fast_dev_run: false
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: 'physics_sim'
+      save_dir: ${trainer.default_root_dir}/test
+      name: test
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: "step"
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        dirpath: "${trainer.default_root_dir}/test/checkpoints"
+        monitor: "val/raw_VRMSE" # name of the logged metric which determines when model is improving
+        mode: "min"
+        save_top_k: 1 # save k best models (determined by above metric)
+        save_last: True # additionaly always save model from last epoch
+        verbose: False
+        filename: "epoch_{epoch:03d}"
+        auto_insert_metric_name: False
+
+    # - class_path: lightning.pytorch.callbacks.EarlyStopping
+    #   init_args:
+    #     monitor: "val/loss"
+    #     mode: "min"
+    #     patience: 10 # how many validation epochs of not improving until training stops
+    #     min_delta: 0. # minimum change in the monitored metric needed to qualify as an improvement
+
+    - class_path: lightning.pytorch.callbacks.RichModelSummary
+      init_args:
+        max_depth: -1
+
+    - class_path: lightning.pytorch.callbacks.TQDMProgressBar
+
+# ---------------------------- MODEL -------------------------------------------
+model:
+  data_metadata: ${data.metadata_dict}
+  max_video_size: [33, 1024, 512]
+  learnable_padding: False
+  film: True
+  film_embedding: 512
+  channels: 128
+  channels_mult: [2, 4, 4]
+  z_channels: 16
+  z_factor: 1
+  embedding_dim: 6
+  levels: [8, 8, 8, 5, 5, 5]
+  spatial_compression: 16
+  temporal_compression: 8
+  num_res_blocks: 2
+  patch_size: 4
+  patch_method: "haar"
+  resolution: 1024
+  attn_resolutions: [32]
+  dropout: 0.0
+  legacy_mode: False
+  pretrained_path: null
+  stage_one_path: null
+  use_gradient_checkpoint: False
+  loss_type: "mse"
+  lr: 1e-3
+  beta_1: 0.9
+  beta_2: 0.95
+  warmup_epochs: 10
+  max_epochs: 300
+  warmup_start_lr: 1e-8
+  eta_min: 1e-8
+
+# ---------------------------- DATA -------------------------------------------
+data:
+  metadata_dict: {
+    "active_matter": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/active_matter",
+      "data_resolution": [256, 256],
+      "channel_names": ["concentration_AM", "velocity_x_AM", "velocity_y_AM", "D_xx_AM", "D_xy_AM", "D_yx_AM", "D_yy_AM", "E_xx_AM", "E_xy_AM", "E_yx_AM", "E_yy_AM"]
+    },
+    "shear_flow": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/shear_flow",
+      "data_resolution": [256, 512],
+      "channel_names": ["tracer_SF", "pressure_SF", "velocity_x_SF", "velocity_y_SF"]
+    },
+    "rayleigh_benard": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/rayleigh_benard",
+      "data_resolution": [512, 128],
+      "channel_names": ["buoyancy_RB", "pressure_RB", "velocity_x_RB", "velocity_y_RB"]
+    },
+    "acoustic_scattering_maze": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/acoustic_scattering_maze",
+      "data_resolution": [256, 256],
+      "channel_names": ["density_ASM", "pressure_ASM", "speed_of_sound_ASM", "velocity_x_ASM", "velocity_y_ASM"]
+    },
+    "euler_multi_quadrants_periodicBC": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/euler_multi_quadrants_periodicBC",
+      "data_resolution": [512, 512],
+      "channel_names": ["energy_EMP", "density_EMP", "pressure_EMP", "momentum_x_EMP", "momentum_y_EMP"]
+    },
+    "gray_scott_reaction_diffusion": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/gray_scott_reaction_diffusion",
+      "data_resolution": [128, 128],
+      "channel_names": ["A_GS", "B_GS"]
+    },
+    "helmholtz_staircase": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/helmholtz_staircase",
+      "data_resolution": [1024, 256],
+      "channel_names": ["pressure_re_HS", "pressure_im_HS", "mask_HS"]
+    },
+    "turbulent_radiative_layer_2D": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/turbulent_radiative_layer_2D",
+      "data_resolution": [128, 384],
+      "channel_names": ["density_TR", "pressure_TR", "velocity_x_TR", "velocity_y_TR"]
+    },
+    "viscoelastic_instability": {
+      "root_dir": "/eagle/MDClimSim/tungnd/data/the_well/normalized/viscoelastic_instability",
+      "data_resolution": [512, 512],
+      "channel_names": ["pressure_VI", "c_zz_VI", "velocity_x_VI", "velocity_y_VI", "C_xx_VI", "C_xy_VI", "C_yx_VI", "C_yy_VI"]
+    }
+  }
+  n_frames: 33
+  batch_size: 1
+  num_workers: 1
+  pin_memory: False

@@ -1,0 +1,113 @@
+seed_everything: 42
+
+# ---------------------------- TRAINER -------------------------------------------
+trainer:
+  default_root_dir: /data0/arshkon/checkpoints/cosmos/finetuned/tokenizers/lightning2
+
+  precision: bf16-mixed
+
+  devices: 1
+  num_nodes: 1
+  accelerator: gpu
+  strategy:
+    class_path: lightning.pytorch.strategies.DDPStrategy
+    init_args:
+      find_unused_parameters: true
+
+  min_epochs: 1
+  max_epochs: 100
+  enable_progress_bar: true
+
+  sync_batchnorm: True
+  enable_checkpointing: True
+  num_sanity_val_steps: 1
+
+  # debugging
+  fast_dev_run: false
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: 'physics_sim'
+      save_dir: ${trainer.default_root_dir}/test
+      name: test
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: "step"
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        dirpath: "${trainer.default_root_dir}/test/checkpoints"
+        monitor: "val/norm_VRMSE" # name of the logged metric which determines when model is improving
+        mode: "min"
+        save_top_k: 1 # save k best models (determined by above metric)
+        save_last: True # additionaly always save model from last epoch
+        verbose: False
+        filename: "epoch_{epoch:03d}"
+        auto_insert_metric_name: False
+
+    # - class_path: lightning.pytorch.callbacks.EarlyStopping
+    #   init_args:
+    #     monitor: "val/norm_VRMSE"
+    #     mode: "min"
+    #     patience: 10 # how many validation epochs of not improving until training stops
+    #     min_delta: 0. # minimum change in the monitored metric needed to qualify as an improvement
+
+    - class_path: lightning.pytorch.callbacks.RichModelSummary
+      init_args:
+        max_depth: -1
+
+    - class_path: lightning.pytorch.callbacks.TQDMProgressBar
+
+# ---------------------------- MODEL -------------------------------------------
+model:
+  in_channels: 4
+  out_channels: 4
+  channels: 128
+  channels_mult: [2, 4, 4]
+  z_channels: 16
+  z_factor: 1
+  embedding_dim: 6
+  levels: [8, 8, 8, 5, 5, 5]
+  spatial_compression: 8
+  temporal_compression: 8
+  num_res_blocks: 2
+  patch_size: 4
+  patch_method: "haar"
+  num_groups: 1
+  resolution: 1024
+  attn_resolutions: [32]
+  dropout: 0.0
+
+  legacy_mode: False
+  pretrained_path: /data0/arshkon/checkpoints/cosmos/Cosmos-1.0-Tokenizer-CV8x8x8/vae_4c.pt
+  scratch: False
+  data_path: ${data.root_dir}
+
+  mode: "continuous"
+  latent_channels: 16
+  formulation: "AE"
+  encoder: "FACTORIZED"
+  decoder: "FACTORIZED"
+  kl_beta: 1.0
+
+  loss_type: "mse"
+  lr: 5e-4
+  beta_1: 0.9
+  beta_2: 0.95
+  warmup_epochs: 10
+  max_epochs: 100
+  warmup_start_lr: 1e-8
+  eta_min: 1e-8
+
+# ---------------------------- DATA -------------------------------------------
+data:
+  root_dir: /data0/arshkon/data/the_well/normalized/shear_flow_4c
+  data_resolution: [256, 512]
+  channel_names: ['tracer', 'pressure', 'velocity_x', 'velocity_y']
+  n_frames: 33
+  batch_size: 1
+  num_workers: 1
+  pin_memory: False
