@@ -1,4 +1,4 @@
-# UniPhy: A Foundation Model for Physics Simulations
+# PhysiX: A Foundation Model for Physics Simulations
 
 ## Abstract
 
@@ -8,8 +8,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/UniPhy.git
-cd UniPhy
+git clone https://github.com/your-org/PhysiX.git
+cd PhysiX
 
 # Create & activate Conda environment
 conda env create -f environment.yaml
@@ -183,7 +183,7 @@ Run any module with `-h` to view detailed flags.
 
 ```bibtex
 @misc{nguyen2025uniphy,
-  title={UniPhy: A Foundation Model for Physics Simulations},
+  title={PhysiX: A Foundation Model for Physics Simulations},
   author={Tung Nguyen and Arsh Koneru and Shufan Li and Aditya Grover},
   year={2025},
 }
