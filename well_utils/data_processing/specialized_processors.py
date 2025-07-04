@@ -1,23 +1,33 @@
+import os
+import re
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.animation as animation
 from pathlib import Path
 import h5py
+from PIL import Image
 
 
 CHUNK_SIZE = 33
 
-def save_chunked_data(data, raw_file_path, cleaned_path, sample_index):
+def save_chunked_data(data, raw_file_path, cleaned_path, sample_index, gzip_compression=False):
     file_name = Path(raw_file_path).name
     for start in range(0, data.shape[0]-CHUNK_SIZE+1, CHUNK_SIZE):
         with h5py.File(cleaned_path / f'{raw_file_path.stem}_s{sample_index}_{start}_{start+CHUNK_SIZE}{raw_file_path.suffix}', 'w') as output_file:
-            output_file.create_dataset('data', data=data[start:start+CHUNK_SIZE])
+            if gzip_compression:
+                output_file.create_dataset('data', data=data[start:start+CHUNK_SIZE], compression="gzip")
+            else:
+                output_file.create_dataset('data', data=data[start:start+CHUNK_SIZE])
 
-def save_full_data(data, raw_file_path, cleaned_path, sample_index):
+def save_full_data(data, raw_file_path, cleaned_path, sample_index, gzip_compression=False):
     file_name = Path(raw_file_path).name
     with h5py.File(cleaned_path / f'{raw_file_path.stem}_s{sample_index}{raw_file_path.suffix}', 'w') as output_file:
-        output_file.create_dataset('data', data=data)
+        if gzip_compression:
+            output_file.create_dataset('data', data=data, compression="gzip")
+        else:
+            output_file.create_dataset('data', data=data)
 
 def generate_heatmap_frames(data):
     timesteps, height, width = data.shape
@@ -229,6 +239,45 @@ def process_acoustic_scattering(raw_file_path, cleaned_path, chunked=True):
         else:
             save_full_data(cleaned_data, raw_file_path, cleaned_path, i)
 
+def load_image(img_path):
+    return np.array(Image.open(img_path)).astype(np.float32) / 255.0
+
+def process_phsgen(raw_file_path, cleaned_path, chunked=True):
+    if not "input" in str(Path(raw_file_path)):
+        return
+        # not work -> implement on top level above
+
+    input_sample_img_path = Path(raw_file_path)
+    output_dir = Path(cleaned_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    root_sample_directory = os.path.dirname(os.path.dirname(input_sample_img_path))
+    sample_name = os.path.basename(input_sample_img_path)
+    target_sample_name = sample_name.replace("input", "target")
+
+    # input_img = load_image(os.path.join(root_sample_directory, "input", sample_name))
+    # target_img = load_image(os.path.join(root_sample_directory, "target", sample_name))
+    input_img = load_image(os.path.join(root_sample_directory, "data", sample_name))
+    target_img = load_image(os.path.join(root_sample_directory, "data", target_sample_name))
+
+    # If just 2 dimensions, then expand (H, W) → (H, W, 1)
+    if input_img.ndim == 2:
+        input_img = np.expand_dims(input_img, axis=-1)
+    if target_img.ndim == 2:
+        target_img = np.expand_dims(target_img, axis=-1)
+
+    # Combine at channel axis → (H, W, C)
+    cleaned_data = np.concatenate([input_img, target_img], axis=-1)
+
+    # Extract index from name
+    idx = int(re.findall(r"\d+", sample_name)[0])
+
+    save_name = "_".join(".".join(sample_name.split(".")[:-1]).split("_")[1:])+".hdf5"
+    if chunked:
+        save_chunked_data(cleaned_data, Path(save_name), output_dir, sample_index=idx, gzip_compression=True)
+    else:
+        save_full_data(cleaned_data, Path(save_name), output_dir, sample_index=idx, gzip_compression=True)
+
 processor_mapping = {
     'shear_flow': process_shearflow_data,
     'active_matter': process_active_matter_data,
@@ -243,6 +292,7 @@ processor_mapping = {
     'acoustic_scattering_discontinuous': process_acoustic_scattering,
     'acoustic_scattering_inclusions': process_acoustic_scattering,
     'acoustic_scattering_maze': process_acoustic_scattering,
+    'physgen': process_phsgen,
 }
 
 

@@ -22,6 +22,8 @@ def process_well_dataset(input_dir, output_dir, dataset_name):
             output_subfolder.mkdir(parents=True, exist_ok=True)
             
             for file in files:
+                if not "input" in str(file):
+                    continue
                 input_file_path = Path(subdir) / file
                 try:
                     processor_mapping[dataset_name](input_file_path, output_subfolder, chunked=False)
@@ -29,6 +31,7 @@ def process_well_dataset(input_dir, output_dir, dataset_name):
                     pbar.update(1)
                 except Exception as e:
                     print(f"Error processing {input_file_path}: {e}")
+                    raise e
                     pbar.update(1)
 
 def clean_simulation_data(dataset_name, raw_data_path, cleaned_data_path):

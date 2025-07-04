@@ -1,25 +1,33 @@
-# PhysiX: A Foundation Model for Physics Simulations
+# PhysiX on Physgen Benchmark
 
-## Abstract
+PhysiX:
+- [Paper](https://arxiv.org/abs/2506.17774)
+- [Original Code](https://github.com/ArshKA/PhysiX)
 
-## 1. Introduction
+Physgen (benchmark):
+- [Paper](https://arxiv.org/abs/2503.05333)
+- [Dataset](https://huggingface.co/papers/2503.05333)
 
-## 2. Installation
+## 1. Installation
 
-```bash
+(Changed from the original)
+```
 # Clone repository
-git clone https://github.com/your-org/PhysiX.git
+git clone https://github.com/xXAI-botXx/PhysiX.git
 cd PhysiX
 
 # Create & activate Conda environment
-conda env create -f environment.yaml
+conda create -n cosmos python=3.10 -y
 conda activate cosmos
-
-# Install Python package
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+pip install transformers tensorboard sympy timm tqdm scikit-learn pyyaml pydantic
+pip install datasets pillow wandb ipython ipykernel scikit-image pytorch-msssim pandas
 pip install -e .
+pip install prime_printer shapely ipykernel tqdm kornia numba
 ```
+<br><br>
 
-### 2.1 Configuration
+**Configuration**
 
 After cloning the repository and installing dependencies, configure your project paths by editing `project_config.yaml` (replace placeholders accordingly):
 
