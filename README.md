@@ -2,7 +2,10 @@
 
 ## Abstract
 
-## 1. Introduction
+Foundation models have achieved remarkable success across video, image, and language domains. By scaling up the number of parameters and training datasets, these models acquire generalizable world knowledge and often surpass task-specific approaches. However, such progress has yet to extend to the domain of physics simulation. A primary bottleneck is data scarcity: while millions of images, videos, and textual resources are readily available on the internet, the largest physics simulation datasets contain only tens of thousands of samples. This data limitation hinders the use of large models, as overfitting becomes a major concern. As a result, physics applications typically rely on small models, which struggle with long-range prediction due to limited context understanding. Additionally, unlike images, videos, or text—which typically exhibit fixed granularity—physics datasets often vary drastically in scale, amplifying the challenges of scaling up multitask training. We introduce PhysiX, the first large-scale foundation model for physics simulation. PhysiX is a 4.5B parameter autoregressive generative model. It uses a discrete tokenizer to encode physical processes at different scales into a sequence of discrete tokens, and employs an autoregressive next-token prediction objective to model such processes in the token space. To mitigate the rounding error in the discretization process, PhysiX incorporates a specialized refinement module. Through extensive experiments, we show that PhysiX effectively addresses the data bottleneck, outperforming task-specific baselines under comparable settings as well as the previous absolute state-of-the-art approaches on The Well benchmark. Our results indicate that knowledge learned from natural videos can be successfully transferred to physics simulation, and that joint training across diverse simulation tasks enables synergistic learning.
+
+
+
 
 ## 2. Installation
 
@@ -31,7 +34,6 @@ checkpoint_dir: /path/to/checkpoints
 embeddings_dir: /path/to/embeddings
 results_dir: /path/to/results
 tokenizer_path: /path/to/tokenizer
-cache_dir: /path/to/cache
 ```
 
 
