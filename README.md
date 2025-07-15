@@ -1,3 +1,7 @@
+Current Issues:
+- Env installation under Windows -> transformer-engine
+- PhysiX does not provide official Checkpoints (on date: 15.07.2025)
+
 # PhysiX on Physgen Benchmark
 
 PhysiX:
@@ -17,13 +21,12 @@ git clone https://github.com/xXAI-botXx/PhysiX.git
 cd PhysiX
 
 # Create & activate Conda environment
-conda create -n cosmos python=3.10 -y
-conda activate cosmos
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-pip install transformers tensorboard sympy timm tqdm scikit-learn pyyaml pydantic
-pip install datasets pillow wandb ipython ipykernel scikit-image pytorch-msssim pandas
+conda env create -f ./environment.yaml
+conda activate physix
+conda install -c conda-forge cmake -y
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install transformers tensorboard sympy timm tqdm scikit-learn pyyaml pydantic datasets pillow wandb ipython ipykernel scikit-image pytorch-msssim pandas prime_printer shapely ipykernel tqdm kornia numba iopath nemo_run transformer_engine>=1.4
 pip install -e .
-pip install prime_printer shapely ipykernel tqdm kornia numba
 ```
 <br><br>
 

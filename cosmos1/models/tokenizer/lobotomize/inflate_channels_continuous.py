@@ -16,7 +16,7 @@ from cosmos1.models.tokenizer.networks.continuous_video import CausalContinuousV
 from cosmos1.models.tokenizer.networks.configs import continuous_video
 
 # Import a helper function to inflate channel weights.
-from cosmos1.models.autoregressive.tokenizer.lobotomy.helpers import inflate_channel_weights
+from cosmos1.models.autoregressive.tokenizer.lobotomize.helpers import inflate_channel_weights
 
 
 def remove_ddp_prefix(state_dict: dict) -> dict:
