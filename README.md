@@ -12,7 +12,7 @@ Physgen (benchmark):
 - [Paper](https://arxiv.org/abs/2503.05333)
 - [Dataset](https://huggingface.co/papers/2503.05333)
 
-## 1. Installation
+## Installation
 
 (Changed from the original)
 ```
@@ -28,9 +28,55 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install transformers tensorboard sympy timm tqdm scikit-learn pyyaml pydantic datasets pillow wandb ipython ipykernel scikit-image pytorch-msssim pandas prime_printer shapely ipykernel tqdm kornia numba iopath nemo_run transformer_engine>=1.4
 pip install -e .
 ```
+
 <br><br>
 
 **Configuration**
+
+After cloning the repository and installing dependencies, configure your project paths by editing `project_config.yaml` (replace placeholders accordingly):
+
+```yaml
+raw_data_path: /path/to/raw/data
+cleaned_data_path: /path/to/cleaned/data
+normalized_data_path: /path/to/normalized/data
+checkpoint_dir: /path/to/checkpoints
+embeddings_dir: /path/to/embeddings
+results_dir: /path/to/results
+tokenizer_path: /path/to/tokenizer
+cache_dir: /path/to/cache
+```
+
+<br><br>
+
+---
+### Original Content
+
+---
+
+<br><br>
+
+# PhysiX: A Foundation Model for Physics Simulations
+
+## Abstract
+
+## 1. Introduction
+
+## 2. Installation
+
+```bash
+# Clone repository
+git clone https://github.com/your-org/PhysiX.git
+cd PhysiX
+
+# Create & activate Conda environment
+conda env create -f environment.yaml
+conda activate cosmos
+
+# Install Python package
+pip install -e .
+```
+
+### 2.1 Configuration
 
 After cloning the repository and installing dependencies, configure your project paths by editing `project_config.yaml` (replace placeholders accordingly):
 
