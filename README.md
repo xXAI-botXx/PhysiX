@@ -59,26 +59,26 @@ cache_dir: /path/to/cache
 
 ## Abstract
 
-## 1. Introduction
+Foundation models have achieved remarkable success across video, image, and language domains. By scaling up the number of parameters and training datasets, these models acquire generalizable world knowledge and often surpass task-specific approaches. However, such progress has yet to extend to the domain of physics simulation. A primary bottleneck is data scarcity: while millions of images, videos, and textual resources are readily available on the internet, the largest physics simulation datasets contain only tens of thousands of samples. This data limitation hinders the use of large models, as overfitting becomes a major concern. As a result, physics applications typically rely on small models, which struggle with long-range prediction due to limited context understanding. We introduce PhysiX, the first large-scale foundation model for physics simulation. PhysiX is a 4.5B parameter autoregressive generative model. We show that PhysiX effectively addresses the data bottleneck, outperforming task-specific baselines under comparable settings as well as the previous absolute state-of-the-art approaches on The Well benchmark.
+
+
+
 
 ## 2. Installation
 
 ```bash
-# Clone repository
 git clone https://github.com/your-org/PhysiX.git
 cd PhysiX
 
-# Create & activate Conda environment
 conda env create -f environment.yaml
-conda activate cosmos
+conda activate physix
 
-# Install Python package
 pip install -e .
 ```
 
 ### 2.1 Configuration
 
-After cloning the repository and installing dependencies, configure your project paths by editing `project_config.yaml` (replace placeholders accordingly):
+After cloning the repository and installing dependencies, configure your project paths by editing `project_config.yaml`:
 
 ```yaml
 raw_data_path: /path/to/raw/data
@@ -88,7 +88,6 @@ checkpoint_dir: /path/to/checkpoints
 embeddings_dir: /path/to/embeddings
 results_dir: /path/to/results
 tokenizer_path: /path/to/tokenizer
-cache_dir: /path/to/cache
 ```
 
 
@@ -110,7 +109,6 @@ python -m well_utils.data_processing.process_dataset \
 #### 3.2 Data Normalization
 
 ```bash
-# Compute stats
 python -m well_utils.data_processing.normalization.calculate_stats \
   --input_dir  /data/cleaned/<dataset>/ \
   --output_path /data/normalized/<dataset>/normalization_stats.json
@@ -125,7 +123,7 @@ python -m well_utils.data_processing.normalization.normalize \
 
 #### 3.3 Tokenizer Inflation & Training
 
-Optionally inflate/deflate the input and output channels of the Cosmos AE to preserve pretrained weights. Finetune on simulation data
+Optionally inflate/deflate the input and output channels of the Cosmos AE to preserve pretrained weights to finetune on simulation data
 
 **Discrete Channels**:
 ```bash
@@ -218,34 +216,17 @@ PYTHONPATH=$(pwd) python cosmos1/models/autoregressive/evaluation/general.py \
   --compression_ratio   4 8 8
 ```
 
-## 4. CLI Reference
-
-- **Data Processing**: `well_utils.data_processing.process_dataset`  
-- **Normalization**: `well_utils.data_processing.normalization.normalize`  
-- **Tokenizer Inflation**: `cosmos1.models.autoregressive.tokenizer.lobotomize.inflate_channels_*`  
-- **Tokenizer Training**: `cosmo_lightning/train_universal_vae_distributed.py`  
-- **AR Training**: `cosmos1.models.autoregressive.nemo.post_training.general`  
-- **Evaluation**: `cosmos1.models.autoregressive.evaluation.general`  
-
-Run any module with `-h` to view detailed flags.
-
-## 5. Results & Visualizations
-
-- **Checkpoints**: saved to `<log_dir>`  
-- **Metrics**: `metrics.json`, `all_metrics.json` in `<output_dir>`  
-- **Generated Arrays**: `.npz` files in `<output_dir>/arrays/`  
-- **Visualizations**: MP4 heatmaps in `<output_dir>`
-
-## 6. Citation
+## 4. Citation
 
 ```bibtex
-@misc{nguyen2025uniphy,
+@article{nguyen2025physix,
   title={PhysiX: A Foundation Model for Physics Simulations},
-  author={Tung Nguyen and Arsh Koneru and Shufan Li and Aditya Grover},
-  year={2025},
+  author={Nguyen, Tung and Koneru, Arsh and Li, Shufan and others},
+  journal={arXiv preprint arXiv:2506.17774},
+  year={2025}
 }
 ```
 
-## 7. Acknowledgments
+## 5. Acknowledgments
 
 This project is adapted from [Cosmos](https://github.com/nvidia-cosmos/cosmos-predict1), an open-source framework developed by NVIDIA
