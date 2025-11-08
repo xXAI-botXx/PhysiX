@@ -251,14 +251,14 @@ def process_phsgen(raw_file_path, cleaned_path, chunked=True):
     output_dir = Path(cleaned_path)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    root_sample_directory = os.path.dirname(os.path.dirname(input_sample_img_path))
+    root_sample_directory = os.path.dirname(input_sample_img_path)
     sample_name = os.path.basename(input_sample_img_path)
     target_sample_name = sample_name.replace("input", "target")
 
     # input_img = load_image(os.path.join(root_sample_directory, "input", sample_name))
     # target_img = load_image(os.path.join(root_sample_directory, "target", sample_name))
-    input_img = load_image(os.path.join(root_sample_directory, "data", sample_name))
-    target_img = load_image(os.path.join(root_sample_directory, "data", target_sample_name))
+    input_img = load_image(os.path.join(root_sample_directory, sample_name))
+    target_img = load_image(os.path.join(root_sample_directory, target_sample_name))
 
     # If just 2 dimensions, then expand (H, W) → (H, W, 1)
     if input_img.ndim == 2:

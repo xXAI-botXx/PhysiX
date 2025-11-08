@@ -7,6 +7,7 @@ See:
 - https://github.com/physicsgen/physicsgen
 """
 import os
+import shutil
 from PIL import Image
 
 from datasets import load_dataset
@@ -20,7 +21,8 @@ from torch.utils.data import DataLoader, Dataset
 # import torchvision.transforms as transforms
 from torchvision import transforms
 
-import prime_printer as prime
+from tqdm import tqdm
+# import prime_printer as prime
 
 def resize_tensor_to_divisible_by_14(tensor: torch.Tensor) -> torch.Tensor:
     """
@@ -67,6 +69,7 @@ class PhysGenDataset(Dataset):
         self.device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
         # get data
         self.dataset = load_dataset("mspitzna/physicsgen", name=variation, trust_remote_code=True)
+        # print("Keys:", self.dataset.keys())
         self.dataset = self.dataset[mode]
         
         self.input_type = input_type
@@ -106,11 +109,12 @@ class PhysGenDataset(Dataset):
         # target_img = resize_tensor_to_divisible_by_14(target_img)
 
         # add fake rgb
-        if input_img.shape[0] == 1:  # shape (B, 1, H, W)
-            input_img = input_img.repeat(3, 1, 1)  # make it (B, 3, H, W)
+        # if input_img.shape[0] == 1:  # shape (B, 1, H, W)
+        #     input_img = input_img.repeat(3, 1, 1)  # make it (B, 3, H, W)
 
         if self.output_type == "complex_only":
-            base_simulation_img = resize_tensor_to_divisible_by_14(self.transform(self.basesimulation_dataset[idx]["soundmap"]))
+            base_simulation_img = self.transform(self.basesimulation_dataset[idx]["soundmap"])
+            # base_simulation_img = resize_tensor_to_divisible_by_14(self.transform(self.basesimulation_dataset[idx]["soundmap"]))
             # target_img = torch.abs(target_img[0] - base_simulation_img[0])
             target_img = target_img[0] - base_simulation_img[0]
             target_img = target_img.unsqueeze(0)
@@ -119,20 +123,75 @@ class PhysGenDataset(Dataset):
         return input_img, target_img, idx
 
 
-def save_dataset(output_real_path, output_osm_path, variation, input_type, output_type, info_print=False, progress_print=True):
+
+def get_dataloader(mode='train', variation="sound_reflection", input_type="osm", output_type="complex_only", shuffle=True):
+    dataset = PhysGenDataset(mode=mode, variation=variation, input_type=input_type, output_type=output_type)
+    return DataLoader(dataset, batch_size=1, shuffle=shuffle, num_workers=1)
+
+
+
+def get_image(mode='train', variation="sound_reflection", input_type="osm", output_type="complex_only", shuffle=True, 
+              return_output=False, as_numpy_array=True):
+    dataset = PhysGenDataset(mode=mode, variation=variation, input_type=input_type, output_type=output_type)
+    loader = DataLoader(dataset, batch_size=1, shuffle=shuffle, num_workers=1)
+    cur_data = next(iter(loader))
+    input_ = cur_data[0]
+    output_ = cur_data[1]
+
+    if as_numpy_array:
+        input_ = input_.detach().cpu().numpy()
+        output_ = output_.detach().cpu().numpy()
+
+        # remove batch channel
+        input_ = np.squeeze(input_, axis=0)
+        output_ = np.squeeze(output_, axis=0)
+
+        if len(input_.shape) == 3:
+            input_ = np.squeeze(input_, axis=0)
+            output_ = np.squeeze(output_, axis=0)
+
+        # opencv format
+        # if np.issubdtype(img.dtype, np.floating):
+        #     img = (img - img.min()) / (img.max() - img.min() + 1e-8)
+        #     img = (img * 255).astype(np.uint8)
+        input_ = np.transpose(input_, (1, 0))
+        output_ = np.transpose(output_, (1, 0))
+
+
+    result = input_
+    if return_output:
+        result = [input_, output_]
+
+    return result
+
+
+
+def save_dataset(output_path, 
+                 variation, input_type, output_type,
+                 data_mode, 
+                 info_print=False, progress_print=True):
+    # Clearing
+    if os.path.exists(output_path) and os.path.isdir(output_path):
+        shutil.rmtree(output_path)
+        os.makedirs(output_path)
+        print(f"Cleared {output_path}.")
+    else:
+        os.makedirs(output_path)
+        print(f"Created {output_path}.")
+    
     # Load Dataset
-    dataset = PhysGenDataset(mode="test", variation=variation, input_type=input_type, output_type=output_type)
+    dataset = PhysGenDataset(mode=data_mode, variation=variation, input_type=input_type, output_type=output_type)
     data_len = len(dataset)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
     # Save Dataset
-    for i, data in enumerate(dataloader):
-        if progress_print:
+    for i, data in tqdm(enumerate(dataloader)):
+        # if progress_print:
             # print(f'Progress {i+1}/{data_len}')
-            print(prime.get_progress_bar(total=data_len, progress=i+1, 
-                                   should_clear=False, left_bar_char='|', right_bar_char='|', 
-                                   progress_char='#', empty_char=' ', 
-                                   front_message='Physgen Data Loading', back_message='', size=10))
+            # prime.get_progress_bar(total=data_len, progress=i+1, 
+            #                        should_clear=True, left_bar_char='|', right_bar_char='|', 
+            #                        progress_char='#', empty_char=' ', 
+            #                        front_message='Physgen Data Loading', back_message='', size=15)
 
         input_img, target_img, idx = data
         idx = idx[0].item() if isinstance(idx, torch.Tensor) else idx
@@ -145,14 +204,6 @@ def save_dataset(output_real_path, output_osm_path, variation, input_type, outpu
             print(f"Prediction shape [target]: {target_img.shape}")
 
             print(f"OSM Info:\n    -> shape: {input_img.shape}\n    -> min: {input_img.min()}, max: {input_img.max()}")
-
-        # Transform to Numpy
-        # pred_img = forward_img.squeeze(2)
-        # if not (0 <= pred_img.min() <= 255 and 0 <= pred_img.max() <=255):
-        #     raise ValueError(f"Prediction has values out of 0-256 range => min:{pred_img.min()}, max:{pred_img.max()}")
-        # if pred_img.max() <= 1.0:
-        #     pred_img *= 255
-        # pred_img = pred_img.astype(np.uint8)
 
         real_img = target_img.squeeze(0).cpu().squeeze(0).detach().numpy()
         if not (0 <= real_img.min() <= 255 and 0 <= real_img.max() <=255):
@@ -189,16 +240,42 @@ def save_dataset(output_real_path, output_osm_path, variation, input_type, outpu
         # print(f"    -> saved pred at {save_img}")
 
         # save real image
-        save_img = os.path.join(output_real_path, "target_"+file_name)
+        save_img = os.path.join(output_path, "target_"+file_name)
         cv2.imwrite(save_img, real_img)
         if info_print:
             print(f"    -> saved real at {save_img}")
 
         # save osm image
-        save_img = os.path.join(output_osm_path, "input_"+file_name)
+        save_img = os.path.join(output_path, "input_"+file_name)
         cv2.imwrite(save_img, osm_img)
         if info_print:
             print(f"    -> saved osm at {save_img}")
+    print(f"\nSuccessfull saved {data_len} datapoints into {os.path.abspath(output_path)}")
 
 
+if __name__ == "__main__":
+    import argparse
 
+    parser = argparse.ArgumentParser(description="Save OSM and real PhysGen dataset images.")
+
+    parser.add_argument("--output_path", type=str, required=True, help="Path to save images")
+    parser.add_argument("--variation", type=str, required=True, help="PhysGen variation (e.g. box_texture, box_position, etc.)")
+    parser.add_argument("--input_type", type=str, required=True, help="Input type (e.g. osm_depth)")
+    parser.add_argument("--output_type", type=str, required=True, help="Output type (e.g. real_depth)")
+    parser.add_argument("--data_mode", type=str, required=True, help="Data Mode: train, test, val")
+    parser.add_argument("--info_print", action="store_true", help="Print additional info")
+    parser.add_argument("--no_progress", action="store_true", help="Disable progress printing")
+
+    args = parser.parse_args()
+
+    save_dataset(
+        output_path=args.output_path,
+        variation=args.variation,
+        input_type=args.input_type,
+        output_type=args.output_type,
+        data_mode=args.data_mode,
+        info_print=args.info_print,
+        progress_print=not args.no_progress
+    )
+
+    

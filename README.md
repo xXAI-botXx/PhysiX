@@ -14,7 +14,7 @@ Physgen (benchmark):
 
 ## Installation
 
-(Changed from the original)
+<!--
 ```
 # Clone repository
 git clone https://github.com/xXAI-botXx/PhysiX.git
@@ -28,23 +28,114 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install transformers tensorboard sympy timm tqdm scikit-learn pyyaml pydantic datasets pillow wandb ipython ipykernel scikit-image pytorch-msssim pandas prime_printer shapely ipykernel tqdm kornia numba iopath nemo_run transformer_engine>=1.4
 pip install -e .
 ```
+-->
+1. Setup env
+  ```bash
+  git clone https://github.com/your-org/PhysiX.git
+  cd PhysiX
 
-<br><br>
+  conda env create -f environment.yaml
+  conda activate physix
 
-**Configuration**
+  pip install -e .
+  ```
+2. Download data
+  ```bash
+  conda activate physix
+  python physgen_dataset.py --output_path ./datasets/physgen/raw/train --variation sound_reflection --input_type osm --output_type standard --data_mode train
 
-After cloning the repository and installing dependencies, configure your project paths by editing `project_config.yaml` (replace placeholders accordingly):
+  python physgen_dataset.py --output_path ./datasets/physgen/raw/test --variation sound_reflection --input_type osm --output_type standard --data_mode test
 
-```yaml
-raw_data_path: /path/to/raw/data
-cleaned_data_path: /path/to/cleaned/data
-normalized_data_path: /path/to/normalized/data
-checkpoint_dir: /path/to/checkpoints
-embeddings_dir: /path/to/embeddings
-results_dir: /path/to/results
-tokenizer_path: /path/to/tokenizer
-cache_dir: /path/to/cache
+  python physgen_dataset.py --output_path ./datasets/physgen/raw/val --variation sound_reflection --input_type osm --output_type standard --data_mode validation
+  ```
+3. Preprocess Data (convert to hf5 and input and target together)
+  ```bash
+  python -m well_utils.data_processing.process_dataset \
+    physgen \
+    --raw_data_path    ./datasets/physgen/raw/train \
+    --cleaned_data_path ./datasets/physgen/cleaned/train
+  ```
+  ```bash
+  python -m well_utils.data_processing.process_dataset \
+    physgen \
+    --raw_data_path    ./datasets/physgen/raw/test \
+    --cleaned_data_path ./datasets/physgen/cleaned/test
+  ```
+  ```bash
+  python -m well_utils.data_processing.process_dataset \
+    physgen \
+    --raw_data_path    ./datasets/physgen/raw/val \
+    --cleaned_data_path ./datasets/physgen/cleaned/val
+  ```
+4. Normalization Stats
+  ```bash
+  python -m well_utils.data_processing.normalization.calculate_stats \
+  --input_dir ./datasets/physgen/cleaned/train \
+  --output_path ./datasets/physgen/cleaned/train/normalization_stats.json
+  ```
+  ```bash
+  python -m well_utils.data_processing.normalization.calculate_stats \
+  --input_dir ./datasets/physgen/cleaned/test \
+  --output_path ./datasets/physgen/cleaned/test/normalization_stats.json
+  ```
+  ```bash
+  python -m well_utils.data_processing.normalization.calculate_stats \
+  --input_dir ./datasets/physgen/cleaned/val \
+  --output_path ./datasets/physgen/cleaned/val/normalization_stats.json
+  ```
+5. Normalization
+  ```bash
+  python -m well_utils.data_processing.normalization.normalize \
+  --input_dir  ./datasets/physgen/cleaned/train \
+  --output_dir ./datasets/physgen/normalized/train \
+  --stats_path ./datasets/physgen/cleaned/train/normalization_stats.json \
+  --normalization_type standard
+  ```
+  ```bash
+  python -m well_utils.data_processing.normalization.normalize \
+  --input_dir  ./datasets/physgen/cleaned/test \
+  --output_dir ./datasets/physgen/normalized/test \
+  --stats_path ./datasets/physgen/cleaned/test/normalization_stats.json \
+  --normalization_type standard
+  ```
+  ```bash
+  python -m well_utils.data_processing.normalization.normalize \
+  --input_dir  ./datasets/physgen/cleaned/val \
+  --output_dir ./datasets/physgen/normalized/val \
+  --stats_path ./datasets/physgen/cleaned/val/normalization_stats.json \
+  --normalization_type standard
+  ```
+
+
+*This step is not described and propably not needed:*
+6. Embedding -> FIXME, maybe have to download or train embedding?
+  
+
+
+## Training
+
+FIXME -> adjust project_config.yaml
+      -> Use normalization path as data_path, try out
+
+```bash
+torchrun --master_port 12345 --nproc-per-node 1 -m cosmos1.models.autoregressive.nemo.post_training.general \
+  --data_path            /data/embeddings/<dataset>/ \
+  --model_path           nvidia/Cosmos-1.0-Autoregressive-4B \
+  --index_mapping_dir    /checkpoints/indices/PROJECT \
+  --split_string         90,5,5 \
+  --log_dir              /checkpoints/logs/PROJECT \
+  --max_steps            8000 \
+  --save_every_n_steps   1000 \
+  --tensor_model_parallel_size 8 \
+  --global_batch_size    8 \
+  --micro_batch_size     1 \
+  --latent_shape         4 64 64 \
+  --lr                   1e-4
 ```
+
+## Inference
+
+...
 
 <br><br>
 

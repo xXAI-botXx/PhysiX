@@ -5,7 +5,7 @@ from tqdm import tqdm
 import argparse
 from config import RAW_DATA_PATH, CLEANED_DATA_PATH
 
-from specialized_processors import processor_mapping
+from .specialized_processors import processor_mapping
 
 def process_well_dataset(input_dir, output_dir, dataset_name):
     input_dir, output_dir = Path(input_dir), Path(output_dir)
@@ -35,7 +35,7 @@ def process_well_dataset(input_dir, output_dir, dataset_name):
                     pbar.update(1)
 
 def clean_simulation_data(dataset_name, raw_data_path, cleaned_data_path):
-    process_well_dataset(raw_data_path / dataset_name / 'data', cleaned_data_path, dataset_name)
+    process_well_dataset(raw_data_path, cleaned_data_path, dataset_name)
 
 def main():
     parser = argparse.ArgumentParser(description="Process and clean simulation data.")
