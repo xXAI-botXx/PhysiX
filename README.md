@@ -147,39 +147,100 @@ pip install -e .
   --stats_path ./datasets/physgen/cleaned/val/normalization_stats.json \
   --normalization_type standard
   ```
-[RGB-Channel Channel hinzufügen?]
-7. Train Tokenizer -> Continuous VAE, because we have continuous data and not discrete
-  ```bash<
-  mkdir -p /ssd0/tippolit/physix/checkpoints
-  ```
-  ```bash
-  docker run --gpus '"device=0"' --runtime=nvidia -d \
-  --shm-size=8g \
-  --rm \
-  -v ~/src/PhysiX:/workspace \
-  -v /ssd0/tippolit/physix/checkpoints:/workspace/checkpoints \
-  --name physix-tokenizer-train-run \
-  physix \
-  bash -c "nohup torchrun --nproc_per_node=1 --master_port=12341 \
-    -m cosmos1.models.tokenizer.training.general \
-    --train_data_path    ./datasets/physgen/normalized/train \
-    --val_data_path      ./datasets/physgen/normalized/val \
-    --checkpoint_dir     /ssd0/tippolit/physix/checkpoints/physgen/continuous-vae \
-    --batch_size         4 \
-    --epochs             5000 \
-    --save_every_n_epochs 5 \
-    --visual_log_interval 5 \
-    --data_resolution    256 256 \
-    --grad_accumulation_steps 2 \
-    --clip_grad_norm     2.0 \
-    --stats_path         ./datasets/physgen/cleaned/train/normalization_stats.json \
-    --beta               0.01 \
-    > train_tokenizer.log 2>&1 & tail -f train_tokenizer.log"
-  ```
-  Stopping:
-  ```bash
-  docker stop physix-tokenizer-train-run && docker rm /physix-tokenizer-train-run
-  ```
+
+<!--
+7. Train Tokenizer/Embedding -> Continuous VAE, because we have continuous data and not discrete
+  1. Make an Wandb account, create an API Token and paste the token into the command `-e WANDB_API_KEY="YOUR_API_TOKEN"` -> keep your token always hidden/secret! Link: https://wandb.ai/
+  2. Make a hugging-face account (https://huggingface.co/) and go to https://huggingface.co/nvidia/Cosmos-1.0-Tokenizer-CV8x8x8/ -> you might want to accept/agree the license (it's easy to overlook, so look carefully). Create also an API Token and copy it, then login with your token using (use 'Add token as git credential? (Y/n)' y):
+    ```bash
+    git config --global credential.helper store
+    hf auth login
+    ```
+  3. Download Tokenizer Checkpoint (from huggingface)
+    Make folders before:
+    ```bash
+    mkdir -p /ssd0/tippolit/physix/checkpoints
+    mkdir -p /ssd0/tippolit/physix/checkpoints/physgen/autoencoder
+    mkdir -p /ssd0/tippolit/physix/checkpoints/physgen/continuous-vae
+    mkdir -p /home/tippolit/src/PhysiX/physix_checkpoints/continuous-vae
+    ```
+    ```bash
+    cd /ssd0/tippolit/physix/checkpoints/physgen
+    # or
+    cd ~/src/PhysiX && mkdir physix_checkpoints
+    git clone https://huggingface.co/nvidia/Cosmos-1.0-Tokenizer-CV8x8x8
+    ```
+  4. Start Tokenizer Training:
+    Get the right container permissions for user tippolit (or whatever your username is)
+    ```bash
+    chmod -R a+rwX /ssd0/tippolit/physix
+    ```
+    ```bash
+    docker run --gpus '"device=0"' --runtime=nvidia -d \
+    --shm-size=8g \
+    --rm \
+    -v /home/tippolit/src/PhysiX:/workspace \
+    -v /ssd0/tippolit/physix/checkpoints:/checkpoints \
+    -e WANDB_API_KEY="5171efce2df498fa22f2f80de3263a5f36dbb7ec" \
+    --name physix-tokenizer-train-run \
+    physix \
+    bash -c "( \
+        echo '--- 1. Listing /workspace ---' && ls -l /workspace ; \
+        echo -e '\n--- 2. Listing /checkpoints ---\n' && ls -l /checkpoints ; \
+        echo -e '\n--- 3. Listing /checkpoints/physgen ---\n' && ls -l /checkpoints/physgen ; \
+        echo -e '\n--- 4. Listing Checkpoint Dir ---\n' && ls -l /checkpoints/physgen/Cosmos-1.0-Tokenizer-CV8x8x8 ; \
+      ) > docker_info.log 2>&1 && \
+      nohup torchrun --nproc_per_node=1 --master_port=12341 \
+      -m cosmos1.models.tokenizer.training.general \
+      --train_data_path ./datasets/physgen/normalized/train \
+      --val_data_path ./datasets/physgen/normalized/val \
+      --autoencoder_path /checkpoints/physgen/Cosmos-1.0-Tokenizer-CV8x8x8/mean_std.pt \
+      --checkpoint_dir /checkpoints/physgen/continuous-vae \
+      --batch_size 4 \
+      --epochs 5000 \
+      --save_every_n_epochs 5 \
+      --visual_log_interval 5 \
+      --data_resolution    256 256 \
+      --grad_accumulation_steps 2 \
+      --clip_grad_norm     2.0 \
+      --stats_path         ./datasets/physgen/cleaned/train/normalization_stats.json \
+      --beta               0.01 \
+      > train_tokenizer.log 2>&1"
+    ``` 
+    Or without external space:
+    ```bash
+    docker run --gpus '"device=0"' --runtime=nvidia -d \
+    --shm-size=8g \
+    --rm \
+    -v /home/tippolit/src/PhysiX:/workspace \
+    -e WANDB_API_KEY="5171efce2df498fa22f2f80de3263a5f36dbb7ec" \
+    --name physix-tokenizer-train-run \
+    physix \
+    bash -c "nohup torchrun --nproc_per_node=1 --master_port=12341 \
+      -m cosmos1.models.tokenizer.training.general \
+      --train_data_path ./datasets/physgen/normalized/train \
+      --val_data_path ./datasets/physgen/normalized/val \
+      --autoencoder_path ./physix_checkpoints/Cosmos-1.0-Tokenizer-CV8x8x8/encoder.jit \
+      --checkpoint_dir ./physix_checkpoints/continuous-vae \
+      --batch_size 4 \
+      --epochs 5000 \
+      --save_every_n_epochs 5 \
+      --visual_log_interval 5 \
+      --data_resolution    256 256 \
+      --grad_accumulation_steps 2 \
+      --clip_grad_norm     2.0 \
+      --stats_path         ./datasets/physgen/cleaned/train/normalization_stats.json \
+      --beta               0.01 \
+      > train_tokenizer.log 2>&1"
+    ``` 
+    Stopping:
+    ```bash
+    docker stop physix-tokenizer-train-run && docker rm -f /physix-tokenizer-train-run
+    ```
+    Check Logs:
+    ```bash
+    docker logs -f physix-tokenizer-train-run
+    ```
 8. Apply Tokenizer
   ```bash
   python -m cosmos1.models.tokenizer.lobotomize.inflate_channels_continuous \
@@ -190,7 +251,7 @@ pip install -e .
   --height 256 \
   --width 256
   ```
-
+-->
 *Are there more steps needed?*
   
 

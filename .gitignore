@@ -3,3 +3,6 @@
 *png
 *.json
 uniphy*/*
+secret.txt
+/physix_checkpoints/*
+/wandb/*
