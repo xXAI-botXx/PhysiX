@@ -39,7 +39,49 @@ pip install -e .
 
   pip install -e .
   ```
-2. Download data
+2. Docker setup
+  ```bash
+  # --- Docker ---
+  # Make Sure Docker is installed
+  docker --version
+  which docker
+
+  # If not run:
+  sudo apt update
+  sudo apt install -y \
+      ca-certificates \
+      curl \
+      gnupg \
+      lsb-release
+
+  # Add Docker’s official GPG key:
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+      sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+  # Set up the Docker repository:
+  echo \
+  "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+  # Install Docker Engine:
+  sudo apt update
+  sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  # --- Nvidia Container Toolkit ---
+  # Make sure nvidia container toolkit is installed
+  dpkg -l | grep nvidia-container-toolkit
+
+  # Else install it -> see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+
+  # --- Cosmos Container ---
+  cd ~/src/PhysiX
+  docker build --no-cache -t physix -f Dockerfile .
+  ```
+3. Download data
   ```bash
   conda activate physix
   python physgen_dataset.py --output_path ./datasets/physgen/raw/train --variation sound_reflection --input_type osm --output_type standard --data_mode train
@@ -48,7 +90,7 @@ pip install -e .
 
   python physgen_dataset.py --output_path ./datasets/physgen/raw/val --variation sound_reflection --input_type osm --output_type standard --data_mode validation
   ```
-3. Preprocess Data (convert to hf5 and input and target together)
+4. Preprocess Data (convert to hf5 and input and target together)
   ```bash
   python -m well_utils.data_processing.process_dataset \
     physgen \
@@ -67,7 +109,7 @@ pip install -e .
     --raw_data_path    ./datasets/physgen/raw/val \
     --cleaned_data_path ./datasets/physgen/cleaned/val
   ```
-4. Normalization Stats
+5. Normalization Stats
   ```bash
   python -m well_utils.data_processing.normalization.calculate_stats \
   --input_dir ./datasets/physgen/cleaned/train \
@@ -83,7 +125,7 @@ pip install -e .
   --input_dir ./datasets/physgen/cleaned/val \
   --output_path ./datasets/physgen/cleaned/val/normalization_stats.json
   ```
-5. Normalization
+6. Normalization
   ```bash
   python -m well_utils.data_processing.normalization.normalize \
   --input_dir  ./datasets/physgen/cleaned/train \
@@ -105,10 +147,51 @@ pip install -e .
   --stats_path ./datasets/physgen/cleaned/val/normalization_stats.json \
   --normalization_type standard
   ```
+[RGB-Channel Channel hinzufügen?]
+7. Train Tokenizer -> Continuous VAE, because we have continuous data and not discrete
+  ```bash<
+  mkdir -p /ssd0/tippolit/physix/checkpoints
+  ```
+  ```bash
+  docker run --gpus '"device=0"' --runtime=nvidia -d \
+  --shm-size=8g \
+  --rm \
+  -v ~/src/PhysiX:/workspace \
+  -v /ssd0/tippolit/physix/checkpoints:/workspace/checkpoints \
+  --name physix-tokenizer-train-run \
+  physix \
+  bash -c "nohup torchrun --nproc_per_node=1 --master_port=12341 \
+    -m cosmos1.models.tokenizer.training.general \
+    --train_data_path    ./datasets/physgen/normalized/train \
+    --val_data_path      ./datasets/physgen/normalized/val \
+    --checkpoint_dir     /ssd0/tippolit/physix/checkpoints/physgen/continuous-vae \
+    --batch_size         4 \
+    --epochs             5000 \
+    --save_every_n_epochs 5 \
+    --visual_log_interval 5 \
+    --data_resolution    256 256 \
+    --grad_accumulation_steps 2 \
+    --clip_grad_norm     2.0 \
+    --stats_path         ./datasets/physgen/cleaned/train/normalization_stats.json \
+    --beta               0.01 \
+    > train_tokenizer.log 2>&1 & tail -f train_tokenizer.log"
+  ```
+  Stopping:
+  ```bash
+  docker stop physix-tokenizer-train-run && docker rm /physix-tokenizer-train-run
+  ```
+8. Apply Tokenizer
+  ```bash
+  python -m cosmos1.models.tokenizer.lobotomize.inflate_channels_continuous \
+  --weights /ssd0/tippolit/physix/checkpoints/physgen/continuous-vae/Cosmos-1.0-Tokenizer-CV8x8x8/autoencoder.jit \
+  --original_channels 3 \
+  --new_channels 1 \
+  --frames 2 \
+  --height 256 \
+  --width 256
+  ```
 
-
-*This step is not described and propably not needed:*
-6. Embedding -> FIXME, maybe have to download or train embedding?
+*Are there more steps needed?*
   
 
 
