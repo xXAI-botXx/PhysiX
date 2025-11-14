@@ -258,24 +258,71 @@ pip install -e .
 
 ## Training
 
-FIXME -> adjust project_config.yaml
-      -> Use normalization path as data_path, try out
+Go to https://huggingface.co/nvidia/Cosmos-1.0-Autoregressive-4B accept the license (make an account if not done yet).
 
-```bash
-torchrun --master_port 12345 --nproc-per-node 1 -m cosmos1.models.autoregressive.nemo.post_training.general \
-  --data_path            /data/embeddings/<dataset>/ \
-  --model_path           nvidia/Cosmos-1.0-Autoregressive-4B \
-  --index_mapping_dir    /checkpoints/indices/PROJECT \
-  --split_string         90,5,5 \
-  --log_dir              /checkpoints/logs/PROJECT \
-  --max_steps            8000 \
-  --save_every_n_steps   1000 \
-  --tensor_model_parallel_size 8 \
-  --global_batch_size    8 \
-  --micro_batch_size     1 \
-  --latent_shape         4 64 64 \
-  --lr                   1e-4
-```
+1. Make an Wandb account, create an API Token and paste the token into the command `-e WANDB_API_KEY="YOUR_API_TOKEN"` -> keep your token always hidden/secret! Link: https://wandb.ai/
+2. Make a hugging-face account (https://huggingface.co/) and go to https://huggingface.co/nvidia/Cosmos-1.0-Autoregressive-4B -> you might want to accept/agree the license (it's easy to overlook, so look carefully). Create also an API Token and copy it, then login with your token using (use 'Add token as git credential? (Y/n)' y):
+  ```bash
+  git config --global credential.helper store
+  hf auth login
+  ```
+3. Make paths
+  ```bash
+  mkdir -p /home/tippolit/src/PhysiX/physix_checkpoints
+  mkdir -p /home/tippolit/src/PhysiX/logs
+  ```
+4. Download model:
+  ```bash
+  cd /home/tippolit/src/PhysiX/physix_checkpoints
+  git clone https://huggingface.co/nvidia/Cosmos-1.0-Autoregressive-4B
+  cd ..
+  ```
+5. Check Installation:
+  ```bash
+  # start an interactive container:
+  docker run --gpus '"device=0"' -it --rm --shm-size=8g -v /home/tippolit/src/PhysiX:/workspace physix:fixed bash
+
+  # inside container:
+  python -c "import torch; print('torch', torch.__version__, 'cuda?', torch.cuda.is_available())"
+  python -c "import transformer_engine as te; print('TE ok', te.__version__)"
+  python -c "import modelopt; print('modelopt', modelopt.__version__); import modelopt.torch; print('modelopt.torch ok')"
+  python -c "python -c \"import nemo; print('nemo ok')\""
+  ```
+6. Start Training:
+  ```bash
+  docker run --gpus '"device=0"' --runtime=nvidia -d \
+      --shm-size=8g \
+      --rm \
+      -v /home/tippolit/src/PhysiX:/workspace \
+      -e WANDB_API_KEY="5171efce2df498fa22f2f80de3263a5f36dbb7ec" \
+      --name physix-autoregressive-train-run \
+      physix \
+      bash -c "nohup torchrun \
+      --master_port 12345 \
+      --nproc-per-node 1 -m cosmos1.models.autoregressive.nemo.post_training.general \
+      --data_path            ./datasets/physgen/normalized/train \
+      --model_path           ./physix_checkpoints/Cosmos-1.0-Autoregressive-4B \
+      --index_mapping_dir    ./physix_checkpoints/indices/physgen \
+      --split_string         90,5,5 \
+      --log_dir              ./logs/physgen \
+      --max_steps            8000 \
+      --save_every_n_steps   1000 \
+      --tensor_model_parallel_size 8 \
+      --global_batch_size    8 \
+      --micro_batch_size     1 \
+      --latent_shape         4 64 64 \
+      --lr                   1e-4 \
+        > train_autoregressive.log 2>&1"
+  ```
+7. Results and tools:
+  Stopping:
+  ```bash
+  docker stop physix-autoregressive-train-run && docker rm -f /physix-autoregressive-train-run
+  ```
+  Check Logs:
+  ```bash
+  docker logs -f physix-autoregressive-train-run
+  ```
 
 ## Inference
 

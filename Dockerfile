@@ -1,19 +1,22 @@
 # Base: CUDA 12.6 runtime with Ubuntu 22.04
 # FROM nvidia/cuda:12.6.2-runtime-ubuntu22.04
 # FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04  
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
-# nvidia/cuda:12.4.1-cudnn8-runtime-ubuntu22.04
+# FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
 
 # Basic setup
 ENV DEBIAN_FRONTEND=noninteractive
-WORKDIR /workspace
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake libnuma-dev git pkg-config \
+    cuda-command-line-tools-12-4 || true
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.10 python3.10-dev python3-pip python3-setuptools python3-wheel \
-    git wget curl ffmpeg sox libsndfile1 \
+    wget curl ffmpeg sox libsndfile1 \
     libhdf5-dev libfreetype6-dev libfontconfig1-dev libffi-dev \
-    build-essential cython3 && \
+    cython3 && \
     rm -rf /var/lib/apt/lists/*
 
 
@@ -37,7 +40,7 @@ RUN pip install --no-cache-dir \
     freetype-py \
     iopath \
     imutils \
-    pynvml \
+    nvidia-ml-py \
     imageio \
     termcolor \
     attrs \
@@ -48,6 +51,18 @@ RUN pip install --no-cache-dir \
     accelerate \
     pybind11
 RUN pip install --no-build-isolation nemo_toolkit[all]
+
+# install Transformer Engine (stable) and ModelOpt with torch extras
+ENV NVTE_FRAMEWORK=pytorch
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+      "git+https://github.com/NVIDIA/TransformerEngine.git@stable" \
+      "nvidia-modelopt[all]" \
+      --prefer-binary
+
+
+# NVIDIA apex (if NeMo / Megatron needs it)
+RUN pip install --no-cache-dir git+https://github.com/NVIDIA/apex.git
 
 COPY . /workspace
 RUN pip install -e .
